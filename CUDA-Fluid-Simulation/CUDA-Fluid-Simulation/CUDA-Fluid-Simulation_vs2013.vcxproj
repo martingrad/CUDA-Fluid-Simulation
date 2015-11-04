@@ -110,7 +110,6 @@
     <ClCompile Include="CUDA-Fluid-Simulation.cpp" />
     <CudaCompile Include="CUDA-Fluid-Simulation_kernels.cu" />
     <ClInclude Include="defines.h" />
-    <ClInclude Include="CUDA-Fluid-Simulation-kernels.h" />
     <None Include="CUDA-Fluid-Simulation-kernels.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
