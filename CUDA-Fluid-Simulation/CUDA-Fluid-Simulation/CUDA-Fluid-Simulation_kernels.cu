@@ -36,7 +36,7 @@ void forwardEuler()
 
 
 __global__
-void advectVelocity_GPU(char *a, int *b)
+void advectVelocity_kernel(char *a, int *b)
 {
 	// voxel (i,j,k)
 	//int i = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -75,7 +75,7 @@ void advectVelocity()
 
 	dim3 dimBlock(blocksize, 1);
 	dim3 dimGrid(1, 1);
-	advectVelocity_GPU<<<dimGrid, dimBlock>>>(ad, bd);
+	advectVelocity_kernel<<<dimGrid, dimBlock>>>(ad, bd);
 	cudaMemcpy(a, ad, csize, cudaMemcpyDeviceToHost);
 	cudaFree(ad);
 	cudaFree(bd);

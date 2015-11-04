@@ -8,6 +8,6 @@
 #include "defines.h"
 
 __global__ void
-advectVelocity_GPU();
+advectVelocity_kernel();
 
 #endif
