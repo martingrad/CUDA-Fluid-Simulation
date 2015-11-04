@@ -13,4 +13,7 @@
 #define THREADS_PER_BLOCK 512		// 8 * 8 * 8
 #define NUMBER_OF_BLOCKS 512		// 8 * 8 * 8
 
+typedef unsigned char fluidPressureType;	// 0-255
+typedef float4 fluidVelocityType;
+
 #endif
