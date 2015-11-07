@@ -1,6 +1,8 @@
 /*
- *
- *
+ * CUDA Fluid Simulation
+ * TSBK03 - Teknik för avancerade datorspel
+ * Linköping University
+ * Martin Gråd and Emma Forsling Parborg
  */
 
 // OpenGL Graphics includes
@@ -42,6 +44,7 @@
 #endif
 
 #include "CUDA-Fluid-Simulation-kernels.cuh"
+#include "shaders.h"
 
 cudaExtent volumeSize = make_cudaExtent(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Y);
 const int NUMBER_OF_GRID_CELLS = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z;
@@ -49,6 +52,8 @@ const int NUMBER_OF_GRID_CELLS = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z;
 StopWatchInterface *timer = NULL;
 static int fpsCount = 0;
 int fpsLimit = 1;
+
+GLuint shaderProgram = NULL;
 
 extern "C" void advectVelocity();
 extern "C" void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent volumeSize);
@@ -72,14 +77,13 @@ void display(void)
 	// Render stuff
 	glClearColor(0.0, 0.0, 0.5, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisable(GL_TEXTURE_2D);
+	// TODO: glEnable() stuff...?
+
+	// TODO: Add quad to draw to and display on screen
+	glUseProgram(shaderProgram);
+	//glUniform1f(glGetUniformLocation(shaderProgram, "pointScale"), m_window_h / tanf(m_fov*0.5f*(float)M_PI / 180.0f));
+	//glUniform1f(glGetUniformLocation(shaderProgram, "pointRadius"), m_particleRadius);
+	glUseProgram(0);
 
 	// Finish timing before swap buffers to avoid refresh sync
 	sdkStopTimer(&timer);
@@ -123,6 +127,38 @@ int initGL(int *argc, char **argv)
 		return false;
 	}
 
+	// Create shader program
+	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glShaderSource(vertexShader, 1, &vertexShaderContents, 0);
+	glShaderSource(fragmentShader, 1, &fragmentShaderContents, 0);
+
+	glCompileShader(vertexShader);
+	glCompileShader(fragmentShader);
+
+	GLuint program = glCreateProgram();
+
+	glAttachShader(program, vertexShader);
+	glAttachShader(program, fragmentShader);
+
+	glLinkProgram(program);
+
+	// check if program linked
+	GLint success = 0;
+	glGetProgramiv(program, GL_LINK_STATUS, &success);
+
+	if (!success)
+	{
+		char temp[256];
+		glGetProgramInfoLog(program, 256, 0, temp);
+		printf("Failed to link program:\n%s\n", temp);
+		glDeleteProgram(program);
+		program = 0;
+	}
+
+	shaderProgram = program;
+
 	return true;
 }
 
@@ -133,6 +169,7 @@ int main(int argc, char **argv)
 	initCuda(fluidVelocityData, fluidPressureData, volumeSize);
 	
 	initGL(&argc, argv);
+
 	simulateFluid();
 
 	while (true)

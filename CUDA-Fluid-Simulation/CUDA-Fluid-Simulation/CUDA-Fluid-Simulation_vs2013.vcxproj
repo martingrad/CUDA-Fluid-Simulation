@@ -108,6 +108,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CUDA-Fluid-Simulation.cpp" />
+    <ClCompile Include="shaders.cpp" />
+    <ClInclude Include="shaders.h" />
     <CudaCompile Include="CUDA-Fluid-Simulation_kernels.cu" />
     <ClInclude Include="defines.h" />
     <None Include="CUDA-Fluid-Simulation-kernels.cuh" />
