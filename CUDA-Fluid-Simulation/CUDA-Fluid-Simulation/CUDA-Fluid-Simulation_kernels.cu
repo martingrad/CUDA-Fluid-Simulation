@@ -7,8 +7,7 @@
 #include <stdlib.h>
 
 #include <cuda_runtime.h>
-#include <cufft.h>          // CUDA FFT Libraries
-#include <helper_cuda.h>    // Helper functions for CUDA Error handling
+#include <helper_cuda.h>		// Helper functions for CUDA Error handling
 
 // OpenGL Graphics includes
 #include <GL/glew.h>
@@ -28,7 +27,8 @@ typedef unsigned char uchar;
 cudaArray *fluidData_velocity_GPU = 0;
 cudaArray *fluidData_pressure_GPU = 0;
 
-texture<fluidPressureType, 3, cudaReadModeNormalizedFloat> tex_pressure;         // 3D texture
+// 3D textures
+texture<fluidPressureType, 3, cudaReadModeNormalizedFloat> tex_pressure;
 texture<fluidVelocityType, 3, cudaReadModeNormalizedFloat> tex_velocity;
 
 /*
@@ -51,9 +51,9 @@ void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent vol
 	checkCudaErrors(cudaMemcpy3D(&copyParams_v));
 
 	// set texture parameters
-	tex_velocity.normalized = true;                      // access with normalized texture coordinates
-	tex_velocity.filterMode = cudaFilterModeLinear;      // linear interpolation
-	tex_velocity.addressMode[0] = cudaAddressModeClamp;  // clamp texture coordinates
+	tex_velocity.normalized = true;							// access with normalized texture coordinates
+	tex_velocity.filterMode = cudaFilterModeLinear;			// linear interpolation
+	tex_velocity.addressMode[0] = cudaAddressModeClamp;		// clamp texture coordinates
 	tex_velocity.addressMode[1] = cudaAddressModeClamp;
 
 	// bind array to 3D texture
@@ -73,15 +73,14 @@ void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent vol
 	checkCudaErrors(cudaMemcpy3D(&copyParams_p));
 
 	// set texture parameters
-	tex_pressure.normalized = true;                      // access with normalized texture coordinates
-	tex_pressure.filterMode = cudaFilterModeLinear;      // linear interpolation
-	tex_pressure.addressMode[0] = cudaAddressModeClamp;  // clamp texture coordinates
+	tex_pressure.normalized = true;							// access with normalized texture coordinates
+	tex_pressure.filterMode = cudaFilterModeLinear;			// linear interpolation
+	tex_pressure.addressMode[0] = cudaAddressModeClamp;		// clamp texture coordinates
 	tex_pressure.addressMode[1] = cudaAddressModeClamp;
 
 	// bind array to 3D texture
 	checkCudaErrors(cudaBindTextureToArray(tex_pressure, fluidData_pressure_GPU, channelDesc_p));
 }
-
 
 /*
 * Forward Euler
@@ -104,8 +103,12 @@ void advectVelocity_kernel(char *a, int *b)
 	//int k = (blockIdx.z * blockDim.z) + threadIdx.z;
 
 	a[threadIdx.x] += b[threadIdx.x];
-	
 }
+
+
+/* = External cpp function implementations 
+ * =========================================
+*/
 
 extern "C"
 void advectVelocity()
@@ -114,7 +117,9 @@ void advectVelocity()
 	dim3 numBlocks(VOLUME_SIZE_X / threadsPerBlock.x, VOLUME_SIZE_Y / threadsPerBlock.y, VOLUME_SIZE_Z / threadsPerBlock.z);
 	//dim3 numBlocks(NUMBER_OF_BLOCKS ^ 1/3 /, NUMBER_OF_BLOCKS ^ 1 / 3, NUMBER_OF_BLOCKS ^ 1 / 3);
 
-	//advectVelocity_GPU <<<numBlocks, threadsPerBlock>>>(1,2);
+	/**
+	* Ingemar Ragnemalm's 'CUDA Hello World'
+	*/
 
 	const int N = 16;
 	const int blocksize = 16;
@@ -133,6 +138,7 @@ void advectVelocity()
 	cudaMemcpy(ad, a, csize, cudaMemcpyHostToDevice);
 	cudaMemcpy(bd, b, isize, cudaMemcpyHostToDevice);
 
+	// Call kernel
 	dim3 dimBlock(blocksize, 1);
 	dim3 dimGrid(1, 1);
 	advectVelocity_kernel<<<dimGrid, dimBlock>>>(ad, bd);
@@ -142,4 +148,3 @@ void advectVelocity()
 
 	printf("%s\n", a);
 }
-
