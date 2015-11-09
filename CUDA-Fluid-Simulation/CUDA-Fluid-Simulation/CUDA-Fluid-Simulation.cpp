@@ -7,6 +7,7 @@
 
 // OpenGL Graphics includes
 #include <GL/glew.h>
+
 #if defined(__APPLE__) || defined(MACOSX)
   #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   #include <GLUT/glut.h>
@@ -17,7 +18,9 @@
 #include <GL/freeglut.h>
 #endif
 
-// Includes
+#include <GL/gl.h>
+#include <GL/glu.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -45,6 +48,8 @@
 
 #include "CUDA-Fluid-Simulation-kernels.cuh"
 #include "shaders.h"
+
+//#define GLEW_STATIC 1
 
 cudaExtent volumeSize = make_cudaExtent(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Y);
 const int NUMBER_OF_GRID_CELLS = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z;
@@ -74,15 +79,19 @@ void display(void)
 {
 	sdkStartTimer(&timer);
 
-	// Render stuff
+	// Clear framebuffer and zbuffer
 	glClearColor(0.0, 0.0, 0.5, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	// TODO: glEnable() stuff...?
-
-	// TODO: Add quad to draw to and display on screen
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
+	// Create quad that covers screen to render to
+	float quadVertices[] = {-1.0, -1.0,
+							1.0, -1.0,
+							-1.0, 1.0,
+							1.0, 1.0 };
+	// Use shader
 	glUseProgram(shaderProgram);
-	//glUniform1f(glGetUniformLocation(shaderProgram, "pointScale"), m_window_h / tanf(m_fov*0.5f*(float)M_PI / 180.0f));
-	//glUniform1f(glGetUniformLocation(shaderProgram, "pointRadius"), m_particleRadius);
+	glUniform1fv(glGetUniformLocation(shaderProgram, "quadVertices"), 8, quadVertices);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glUseProgram(0);
 
 	// Finish timing before swap buffers to avoid refresh sync
@@ -108,22 +117,51 @@ void display(void)
 /*
 * InitGL
 */
-int initGL(int *argc, char **argv)
+bool initGL(int *argc, char **argv)
 {
-	glutInit(argc, argv);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
-	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-	glutCreateWindow("Compute Stable Fluids");
-	glutDisplayFunc(display);
-	
-	glewInit();
+	glewExperimental = GL_TRUE;
+	if (glewInit() != GLEW_OK){
+		throw std::exception("Failed to initialise GLEW\n");
+		//printf("FAILED TO initialize GLEW");
+	}
+	else {
+		//printf("SUCCESSEDED IN Initialising GLEW\n");
+	}
 
-	if (!glewIsSupported(
-		"GL_ARB_vertex_buffer_object"
-		))
+	if (!glewIsSupported("GL_ARB_vertex_buffer_object"))
 	{
-		fprintf(stderr, "ERROR: Support for necessary OpenGL extensions missing.");
+		fprintf(stderr, "ERROR: Support for necessary OpenGL extensions missing.\n");
 		fflush(stderr);
+		return false;
+	}
+
+	glViewport(0.0f, 0.0f, WINDOW_WIDTH, WINDOW_HEIGHT);
+	
+	// Initialize projection matrix
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0.0, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0,1.0,-1.0);
+
+	// Initialize model view matrix
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	// Initialize clear color
+	glClearColor(0.1,0.1,0.2,0);
+
+	// Enable texturing
+	glEnable(GL_TEXTURE_2D);
+
+	// Set bledning
+	glEnable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	// Check for error
+	GLenum error = glGetError();
+	if (error != GL_NO_ERROR)
+	{
+		printf("Error \n");
 		return false;
 	}
 
@@ -164,12 +202,23 @@ int initGL(int *argc, char **argv)
 
 int main(int argc, char **argv)
 {
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
+	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+
+	glutCreateWindow("Compute Stable Fluids");
+	glutDisplayFunc(display);
+
+	if (!initGL(&argc, argv)){
+		printf("Unable to initialize GLEW\n");
+	}
+
 	void *fluidVelocityData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
 	void *fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
 	initCuda(fluidVelocityData, fluidPressureData, volumeSize);
 	
-	initGL(&argc, argv);
-
+	//initGL(&argc, argv);
+	
 	simulateFluid();
 
 	while (true)

@@ -13,17 +13,17 @@
 
 // vertex shader
 const char *vertexShaderContents = STRINGIFY(
-
+	#version 330 core \n
+	uniform float quadVertices[8];
 	void main()
 	{
-
-		gl_Position = vec4(gl_Vertex.xyz, 1.0);
+		float a[5] = float[](3.4, 4.2, 5.0, 5.2, 1.1);
+		gl_Position = vec4(quadVertices[gl_VertexID * 2], quadVertices[gl_VertexID * 2 + 1], 0.0, 1.0);
 	}
 );
 
 // fragment shader
 const char *fragmentShaderContents = STRINGIFY(
-
 	void main()
 	{
 		gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
