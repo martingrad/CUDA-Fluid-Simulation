@@ -1,4 +1,4 @@
-﻿Build started 9/11/2015 19:26:09 PM.
+﻿Build started 11/11/2015 19:19:05 PM.
      1>Project "D:\Dokument\LiTH\TSBK03\CUDA-Fluid-Simulation\CUDA-Fluid-Simulation\CUDA-Fluid-Simulation\CUDA-Fluid-Simulation_vs2013.vcxproj" on node 2 (Build target(s)).
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(381,5): warning MSB8028: The intermediate directory (x64/Debug/) contains files shared from another project (fluidsGL.vcxproj).  This can lead to incorrect clean and rebuild behavior.
      1>ClCompile:
@@ -13,4 +13,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:00.36
+Time Elapsed 00:00:00.37

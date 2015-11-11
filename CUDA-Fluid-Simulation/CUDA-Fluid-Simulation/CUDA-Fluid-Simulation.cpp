@@ -49,8 +49,6 @@
 #include "CUDA-Fluid-Simulation-kernels.cuh"
 #include "shaders.h"
 
-//#define GLEW_STATIC 1
-
 cudaExtent volumeSize = make_cudaExtent(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Y);
 const int NUMBER_OF_GRID_CELLS = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z;
 
@@ -60,8 +58,13 @@ int fpsLimit = 1;
 
 GLuint shaderProgram = NULL;
 
+GLuint glTex_velocity;
+cudaGraphicsResource *cuda_image_resource;
+cudaArray            *cuda_image_array;
+
 extern "C" void advectVelocity();
 extern "C" void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent volumeSize);
+extern "C" void launch_kernel(struct cudaArray *cuda_image_array, dim3 texture_dim);
 
 /*
 * simulateFluid
@@ -88,9 +91,24 @@ void display(void)
 							1.0, -1.0,
 							-1.0, 1.0,
 							1.0, 1.0 };
+
+	/*int numElements = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * 4;
+	float *data = new float[numElements];
+
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
+	{
+		glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, GL_FLOAT, data);
+	}
+	glBindTexture(GL_TEXTURE_3D, 0);
+
+	printf("%f\n", data[0]);*/
+
 	// Use shader
 	glUseProgram(shaderProgram);
 	glUniform1fv(glGetUniformLocation(shaderProgram, "quadVertices"), 8, quadVertices);
+	glUniform1i(glGetUniformLocation(shaderProgram, "velocityTex"), 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glUseProgram(0);
 
@@ -111,6 +129,7 @@ void display(void)
 		sdkResetTimer(&timer);
 	}
 
+	// Trigger next frame
 	glutPostRedisplay();
 }
 
@@ -134,28 +153,6 @@ bool initGL(int *argc, char **argv)
 		fflush(stderr);
 		return false;
 	}
-
-	glViewport(0.0f, 0.0f, WINDOW_WIDTH, WINDOW_HEIGHT);
-	
-	// Initialize projection matrix
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0.0, WINDOW_WIDTH, WINDOW_HEIGHT, 0.0,1.0,-1.0);
-
-	// Initialize model view matrix
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	// Initialize clear color
-	glClearColor(0.1,0.1,0.2,0);
-
-	// Enable texturing
-	glEnable(GL_TEXTURE_2D);
-
-	// Set bledning
-	glEnable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// Check for error
 	GLenum error = glGetError();
@@ -200,6 +197,35 @@ bool initGL(int *argc, char **argv)
 	return true;
 }
 
+// Check Texture
+void checkTex()
+{
+	int numElements = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * 4;
+	float *data = new float[numElements];
+
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
+	{
+		glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, GL_FLOAT, data);
+	}
+	glBindTexture(GL_TEXTURE_3D, 0);
+
+	bool fail = false;
+	for (int i = 0; i < numElements && !fail; i++)
+	{
+		if (data[i] != 1.0f)
+		{
+			std::cerr << "Not 1.0f, failed writing to texture. Value is: " << data[i] << std::endl;
+			fail = true;
+		}
+	}
+	if (!fail)
+	{
+		std::cerr << "All Elements == 1.0f, texture write successful" << std::endl;
+	}
+
+	delete[] data;
+}
+
 int main(int argc, char **argv)
 {
 	glutInit(&argc, argv);
@@ -213,18 +239,59 @@ int main(int argc, char **argv)
 		printf("Unable to initialize GLEW\n");
 	}
 
-	void *fluidVelocityData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
-	void *fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
+	fluidVelocityType* fluidVelocityData = (fluidVelocityType*)malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
+	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
+
+	// Velocity data
+	for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
+	{
+		fluidVelocityData[i] = (fluidVelocityType)make_float4(1.0, 1.0, 1.0, 1.0);
+	}
+
 	initCuda(fluidVelocityData, fluidPressureData, volumeSize);
-	
-	//initGL(&argc, argv);
-	
+
+	// Trying OpenGL texture to CUDA instead...
+	glGenTextures(1, &glTex_velocity);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
+	{
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z, 0, GL_RGBA, GL_FLOAT, fluidVelocityData);
+	}
+	// Unbind texture
+	glBindTexture(GL_TEXTURE_3D, 0);
+
+	//CUT_CHECK_ERROR_GL();
+
+	// register Image (texture) to CUDA Resource
+	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocity, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
+
+	// map CUDA resource
+	cudaGraphicsMapResources(1, &cuda_image_resource, 0);
+	{
+		//Get mapped array
+		cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
+		dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
+		launch_kernel(cuda_image_array, textureDim);
+	}
+	cudaGraphicsUnmapResources(1, &cuda_image_resource, 0);
+
+	checkTex();
+
+	cudaGraphicsUnregisterResource(cuda_image_resource);
+
+	glDeleteTextures(1, &glTex_velocity);
+
+	//cutilDeviceReset();
+
 	simulateFluid();
 
-	while (true)
-	{
-		display();
-	}
+	glutMainLoop();
 	
 	return 0;
 }
