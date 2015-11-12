@@ -123,12 +123,11 @@ void kernel(dim3 texture_dim)
 		return;
 	}
 
-	float4 element = make_float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float4 element = make_float4(0.0f, 1.0f, 0.0f, 1.0f);
 	surf3Dwrite(element, surfaceWrite, x*sizeof(float4), y, z);
 }
 
-
-/* = External cpp function implementations 
+/* = External cpp function implementations =
  * =========================================
 */
 
@@ -137,38 +136,6 @@ void advectVelocity()
 {
 	dim3 threadsPerBlock(pow(THREADS_PER_BLOCK, 1 / 3), pow(THREADS_PER_BLOCK, 1 / 3), pow(THREADS_PER_BLOCK, 1 / 3));
 	dim3 numBlocks(VOLUME_SIZE_X / threadsPerBlock.x, VOLUME_SIZE_Y / threadsPerBlock.y, VOLUME_SIZE_Z / threadsPerBlock.z);
-	//dim3 numBlocks(NUMBER_OF_BLOCKS ^ 1/3 /, NUMBER_OF_BLOCKS ^ 1 / 3, NUMBER_OF_BLOCKS ^ 1 / 3);
-
-	/**
-	* Ingemar Ragnemalm's 'CUDA Hello World'
-	*/
-
-	const int N = 16;
-	const int blocksize = 16;
-	char a[N] = "Hello \0\0\0\0\0\0";
-	int b[N] = { 15, 10, 6, 0, -11, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-	char *ad;
-	int *bd;
-	const int csize = N*sizeof(char);
-	const int isize = N*sizeof(int);
-
-	printf("%s", a);
-
-	cudaMalloc((void**)&ad, csize);
-	cudaMalloc((void**)&bd, isize);
-	cudaMemcpy(ad, a, csize, cudaMemcpyHostToDevice);
-	cudaMemcpy(bd, b, isize, cudaMemcpyHostToDevice);
-
-	// Call kernel
-	dim3 dimBlock(blocksize, 1);
-	dim3 dimGrid(1, 1);
-	advectVelocity_kernel<<<dimGrid, dimBlock>>>(ad, bd);
-	cudaMemcpy(a, ad, csize, cudaMemcpyDeviceToHost);
-	cudaFree(ad);
-	cudaFree(bd);
-
-	printf("%s\n", a);
 }
 
 extern "C"
@@ -178,19 +145,19 @@ void launch_kernel(cudaArray *cuda_image_array, dim3 texture_dim)
 	dim3 grid_dim(texture_dim.x / block_dim.x, texture_dim.y / block_dim.y, texture_dim.z / block_dim.z);
 
 	//Bind voxel array to a writable CUDA surface
-	//cudaBindSurfaceToArray(surfaceWrite, cuda_image_array);
+	cudaBindSurfaceToArray(surfaceWrite, cuda_image_array);
 
 	// Create the cuda resource description
 	struct cudaResourceDesc resoureDescription;
 	memset(&resoureDescription, 0, sizeof(resoureDescription));
-	resoureDescription.resType = cudaResourceTypeArray;    // be sure to set the resource type to cudaResourceTypeArray
-	resoureDescription.res.array.array = cuda_image_array;    // this is the important bit
+	resoureDescription.resType = cudaResourceTypeArray;			// be sure to set the resource type to cudaResourceTypeArray
+	resoureDescription.res.array.array = cuda_image_array;		// this is the important bit
 
 	// Create the surface object
 	cudaSurfaceObject_t writableSurfaceObject = 0;
 	cudaCreateSurfaceObject(&writableSurfaceObject, &resoureDescription);
 
 	kernel<<<grid_dim, block_dim>>>(texture_dim);
-
+		
 	//cutilCheckMsg("kernel failed");
 }

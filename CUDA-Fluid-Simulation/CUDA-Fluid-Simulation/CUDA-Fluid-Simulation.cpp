@@ -58,7 +58,10 @@ int fpsLimit = 1;
 
 GLuint shaderProgram = NULL;
 
+// OpenGL simulation data textures
 GLuint glTex_velocity;
+GLuint glTex_velocityTest;
+
 cudaGraphicsResource *cuda_image_resource;
 cudaArray            *cuda_image_array;
 
@@ -92,23 +95,12 @@ void display(void)
 							-1.0, 1.0,
 							1.0, 1.0 };
 
-	/*int numElements = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * 4;
-	float *data = new float[numElements];
-
-	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
-	{
-		glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, GL_FLOAT, data);
-	}
-	glBindTexture(GL_TEXTURE_3D, 0);
-
-	printf("%f\n", data[0]);*/
-
 	// Use shader
 	glUseProgram(shaderProgram);
 	glUniform1fv(glGetUniformLocation(shaderProgram, "quadVertices"), 8, quadVertices);
 	glUniform1i(glGetUniformLocation(shaderProgram, "velocityTex"), 0);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glUseProgram(0);
 
@@ -203,7 +195,7 @@ void checkTex()
 	int numElements = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * 4;
 	float *data = new float[numElements];
 
-	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
 	{
 		glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, GL_FLOAT, data);
 	}
@@ -239,7 +231,8 @@ int main(int argc, char **argv)
 		printf("Unable to initialize GLEW\n");
 	}
 
-	fluidVelocityType* fluidVelocityData = (fluidVelocityType*)malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
+	//fluidVelocityType* fluidVelocityData = (fluidVelocityType*)malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
+	fluidVelocityType* fluidVelocityData = new fluidVelocityType[NUMBER_OF_GRID_CELLS];
 	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
 
 	// Velocity data
@@ -250,42 +243,46 @@ int main(int argc, char **argv)
 
 	initCuda(fluidVelocityData, fluidPressureData, volumeSize);
 
-	// Trying OpenGL texture to CUDA instead...
-	glGenTextures(1, &glTex_velocity);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
+	float4* texels;
+	texels = new float4[VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z];
+	//texels = (float4*)malloc(VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * sizeof(float4));
+	for (int i = 0; i < VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z; ++i)
 	{
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z, 0, GL_RGBA, GL_FLOAT, fluidVelocityData);
+		texels[i] = make_float4(1.0, 0.0, 0.0, 1.0);
 	}
+
+	glGenTextures(1, &glTex_velocityTest);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z, 0, GL_RGBA, GL_FLOAT, texels);
+
 	// Unbind texture
 	glBindTexture(GL_TEXTURE_3D, 0);
 
 	//CUT_CHECK_ERROR_GL();
 
 	// register Image (texture) to CUDA Resource
-	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocity, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
+	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocityTest, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
 
 	// map CUDA resource
 	cudaGraphicsMapResources(1, &cuda_image_resource, 0);
-	{
-		//Get mapped array
-		cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
-		dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
-		launch_kernel(cuda_image_array, textureDim);
-	}
+
+	//Get mapped array
+	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
+	dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
+	launch_kernel(cuda_image_array, textureDim);
+	
 	cudaGraphicsUnmapResources(1, &cuda_image_resource, 0);
 
 	checkTex();
 
 	cudaGraphicsUnregisterResource(cuda_image_resource);
 
-	glDeleteTextures(1, &glTex_velocity);
+	//glDeleteTextures(1, &glTex_velocityTest);
 
 	//cutilDeviceReset();
 
