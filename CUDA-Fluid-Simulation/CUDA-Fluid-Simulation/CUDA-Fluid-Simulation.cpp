@@ -218,31 +218,8 @@ void checkTex()
 	delete[] data;
 }
 
-int main(int argc, char **argv)
+void initCuda()
 {
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
-	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-
-	glutCreateWindow("Compute Stable Fluids");
-	glutDisplayFunc(display);
-
-	if (!initGL(&argc, argv)){
-		printf("Unable to initialize GLEW\n");
-	}
-
-	//fluidVelocityType* fluidVelocityData = (fluidVelocityType*)malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
-	fluidVelocityType* fluidVelocityData = new fluidVelocityType[NUMBER_OF_GRID_CELLS];
-	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
-
-	// Velocity data
-	for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
-	{
-		fluidVelocityData[i] = (fluidVelocityType)make_float4(1.0, 1.0, 1.0, 1.0);
-	}
-
-	initCuda(fluidVelocityData, fluidPressureData, volumeSize);
-
 	float4* texels;
 	texels = new float4[VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z];
 	//texels = (float4*)malloc(VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * sizeof(float4));
@@ -275,12 +252,40 @@ int main(int argc, char **argv)
 	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
 	dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
 	launch_kernel(cuda_image_array, textureDim);
-	
+
 	cudaGraphicsUnmapResources(1, &cuda_image_resource, 0);
 
-	checkTex();
+	//checkTex();
 
 	cudaGraphicsUnregisterResource(cuda_image_resource);
+}
+
+int main(int argc, char **argv)
+{
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
+	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+
+	glutCreateWindow("Compute Stable Fluids");
+	glutDisplayFunc(display);
+
+	if (!initGL(&argc, argv)){
+		printf("Unable to initialize GLEW\n");
+	}
+
+	//fluidVelocityType* fluidVelocityData = (fluidVelocityType*)malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
+	fluidVelocityType* fluidVelocityData = new fluidVelocityType[NUMBER_OF_GRID_CELLS];
+	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
+
+	// Velocity data
+	for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
+	{
+		fluidVelocityData[i] = (fluidVelocityType)make_float4(1.0, 1.0, 1.0, 1.0);
+	}
+
+	//initCuda(fluidVelocityData, fluidPressureData, volumeSize);
+
+	initCuda();
 
 	//glDeleteTextures(1, &glTex_velocityTest);
 

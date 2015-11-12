@@ -27,65 +27,8 @@ typedef unsigned char uchar;
 cudaArray *fluidData_velocity_GPU = 0;
 cudaArray *fluidData_pressure_GPU = 0;
 
-
 // Global scope surface to bind to
 surface<void, cudaSurfaceType3D> surfaceWrite;
-
-// 3D textures
-// Texture(<type>, <dim>, <readmode>) <texture_reference>
-
-texture<fluidVelocityType, 3, cudaReadModeNormalizedFloat> tex_velocity;
-texture<fluidPressureType, 3, cudaReadModeNormalizedFloat> tex_pressure;
-
-/*
-* initCuda
-*/
-extern "C"
-void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent volumeSize)
-{
-	// create 3D array
-	cudaChannelFormatDesc channelDesc_v = cudaCreateChannelDesc<fluidVelocityType>();
-	checkCudaErrors(cudaMalloc3DArray(&fluidData_velocity_GPU, &channelDesc_v, volumeSize));
-
-	// copy data to 3D array
-	cudaMemcpy3DParms copyParams_v = { 0 };
-	copyParams_v.srcPtr = make_cudaPitchedPtr(fluidData_velocity, volumeSize.width*sizeof(fluidVelocityType), volumeSize.width, volumeSize.height);
-	copyParams_v.dstArray = fluidData_velocity_GPU;
-	copyParams_v.extent = volumeSize;
-	copyParams_v.kind = cudaMemcpyHostToDevice;
-	checkCudaErrors(cudaMemcpy3D(&copyParams_v));
-
-	// set texture parameters
-	tex_velocity.normalized = true;							// access with normalized texture coordinates
-	tex_velocity.filterMode = cudaFilterModeLinear;			// linear interpolation
-	tex_velocity.addressMode[0] = cudaAddressModeClamp;		// clamp texture coordinates
-	tex_velocity.addressMode[1] = cudaAddressModeClamp;
-
-	// bind array to 3D texture
-	checkCudaErrors(cudaBindTextureToArray(tex_velocity, fluidData_velocity_GPU, channelDesc_v));
-
-	// Pressure data
-	// create 3D array
-	cudaChannelFormatDesc channelDesc_p = cudaCreateChannelDesc<fluidPressureType>();
-	checkCudaErrors(cudaMalloc3DArray(&fluidData_pressure_GPU, &channelDesc_p, volumeSize));
-
-	// copy data to 3D array
-	cudaMemcpy3DParms copyParams_p = { 0 };
-	copyParams_p.srcPtr = make_cudaPitchedPtr(fluidData_pressure, volumeSize.width*sizeof(fluidPressureType), volumeSize.width, volumeSize.height);
-	copyParams_p.dstArray = fluidData_pressure_GPU;
-	copyParams_p.extent = volumeSize;
-	copyParams_p.kind = cudaMemcpyHostToDevice;
-	checkCudaErrors(cudaMemcpy3D(&copyParams_p));
-
-	// set texture parameters
-	tex_pressure.normalized = true;							// access with normalized texture coordinates
-	tex_pressure.filterMode = cudaFilterModeLinear;			// linear interpolation
-	tex_pressure.addressMode[0] = cudaAddressModeClamp;		// clamp texture coordinates
-	tex_pressure.addressMode[1] = cudaAddressModeClamp;
-
-	// bind array to 3D texture
-	checkCudaErrors(cudaBindTextureToArray(tex_pressure, fluidData_pressure_GPU, channelDesc_p));
-}
 
 /*
 * Forward Euler
