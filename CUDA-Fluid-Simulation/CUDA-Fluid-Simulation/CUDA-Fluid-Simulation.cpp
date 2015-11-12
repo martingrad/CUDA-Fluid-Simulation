@@ -67,7 +67,11 @@ cudaArray            *cuda_image_array;
 
 extern "C" void advectVelocity();
 extern "C" void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent volumeSize);
-extern "C" void launch_kernel(struct cudaArray *cuda_image_array, dim3 texture_dim);
+extern "C" void launch_kernel(struct cudaArray *cuda_image_array, dim3 texture_dim, float testFloatX, float testFloatY, float testFloatZ);
+
+float testFloatX = 0.0f;
+float testFloatY = 0.0f;
+float testFloatZ = 0.0f;
 
 /*
 * simulateFluid
@@ -251,7 +255,7 @@ void initCuda()
 	//Get mapped array
 	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
 	dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
-	launch_kernel(cuda_image_array, textureDim);
+	launch_kernel(cuda_image_array, textureDim, testFloatX, testFloatY, testFloatZ);
 
 	cudaGraphicsUnmapResources(1, &cuda_image_resource, 0);
 

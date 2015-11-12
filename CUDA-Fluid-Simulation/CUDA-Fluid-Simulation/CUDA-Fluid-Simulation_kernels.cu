@@ -30,6 +30,7 @@ cudaArray *fluidData_pressure_GPU = 0;
 // Global scope surface to bind to
 surface<void, cudaSurfaceType3D> surfaceWrite;
 
+
 /*
 * Forward Euler
 * x^n+1 = x^n + f(x^n,t^n)t
@@ -66,7 +67,7 @@ void kernel(dim3 texture_dim)
 		return;
 	}
 
-	float4 element = make_float4(0.0f, 1.0f, 0.0f, 1.0f);
+	float4 element = make_float4(1.0, 0.0, 1.0, 1.0f);
 	surf3Dwrite(element, surfaceWrite, x*sizeof(float4), y, z);
 }
 
@@ -82,8 +83,9 @@ void advectVelocity()
 }
 
 extern "C"
-void launch_kernel(cudaArray *cuda_image_array, dim3 texture_dim)
+void launch_kernel(cudaArray *cuda_image_array, dim3 texture_dim, float testFloatX, float testFloatY, float testFloatZ)
 {
+	
 	dim3 block_dim(8, 8, 8);
 	dim3 grid_dim(texture_dim.x / block_dim.x, texture_dim.y / block_dim.y, texture_dim.z / block_dim.z);
 
