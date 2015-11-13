@@ -246,13 +246,13 @@ void initCuda()
 
 	//CUT_CHECK_ERROR_GL();
 
-	// register Image (texture) to CUDA Resource
+	// Register Image (texture) to CUDA Resource
 	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocityTest, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
 
-	// map CUDA resource
+	// Map CUDA resource
 	cudaGraphicsMapResources(1, &cuda_image_resource, 0);
 
-	//Get mapped array
+	// Get mapped array
 	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
 	dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
 	launch_kernel(cuda_image_array, textureDim, testFloatX, testFloatY, testFloatZ);
@@ -262,6 +262,8 @@ void initCuda()
 	//checkTex();
 
 	cudaGraphicsUnregisterResource(cuda_image_resource);
+
+	delete texels;
 }
 
 int main(int argc, char **argv)
@@ -281,13 +283,11 @@ int main(int argc, char **argv)
 	fluidVelocityType* fluidVelocityData = new fluidVelocityType[NUMBER_OF_GRID_CELLS];
 	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
 
-	// Velocity data
-	for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
+	// Create velocity data
+	/*for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
 	{
 		fluidVelocityData[i] = (fluidVelocityType)make_float4(1.0, 1.0, 1.0, 1.0);
-	}
-
-	//initCuda(fluidVelocityData, fluidPressureData, volumeSize);
+	}*/
 
 	initCuda();
 
@@ -296,6 +296,10 @@ int main(int argc, char **argv)
 	//cutilDeviceReset();
 
 	simulateFluid();
+
+	// Delete volume data from (regular) RAM
+	delete fluidVelocityData;
+	delete fluidPressureData;
 
 	glutMainLoop();
 	

@@ -664,3 +664,6 @@ C:\Program Files (x86)\Windows Kits\8.1\Include\um\GL/gl.h
 d:\dokument\lith\tsbk03\cuda-fluid-simulation\common\inc\gl\freeglut_ext.h
 d:\dokument\lith\tsbk03\cuda-fluid-simulation\cuda-fluid-simulation\cuda-fluid-simulation\CUDA-Fluid-Simulation-kernels.cuh
 d:\dokument\lith\tsbk03\cuda-fluid-simulation\cuda-fluid-simulation\cuda-fluid-simulation\defines.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include\cuda.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include\cuda_runtime.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v7.5\/include\device_launch_parameters.h

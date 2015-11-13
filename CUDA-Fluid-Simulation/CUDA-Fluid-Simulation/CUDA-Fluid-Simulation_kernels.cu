@@ -30,7 +30,6 @@ cudaArray *fluidData_pressure_GPU = 0;
 // Global scope surface to bind to
 surface<void, cudaSurfaceType3D> surfaceWrite;
 
-
 /*
 * Forward Euler
 * x^n+1 = x^n + f(x^n,t^n)t
@@ -58,17 +57,17 @@ void advectVelocity_kernel(char *a, int *b)
 __global__
 void kernel(dim3 texture_dim)
 {
-	int x = blockIdx.x*blockDim.x + threadIdx.x;
-	int y = blockIdx.y*blockDim.y + threadIdx.y;
-	int z = blockIdx.z*blockDim.z + threadIdx.z;
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
 
 	if (x >= texture_dim.x || y >= texture_dim.y || z >= texture_dim.z)
 	{
 		return;
 	}
 
-	float4 element = make_float4(1.0, 0.0, 1.0, 1.0f);
-	surf3Dwrite(element, surfaceWrite, x*sizeof(float4), y, z);
+	float4 element = make_float4(1.0 + blockIdx.x, 0.0, 1.0, 1.0f);
+	surf3Dwrite(element, surfaceWrite, x * sizeof(float4), y, z);
 }
 
 /* = External cpp function implementations =
@@ -85,23 +84,23 @@ void advectVelocity()
 extern "C"
 void launch_kernel(cudaArray *cuda_image_array, dim3 texture_dim, float testFloatX, float testFloatY, float testFloatZ)
 {
-	
 	dim3 block_dim(8, 8, 8);
 	dim3 grid_dim(texture_dim.x / block_dim.x, texture_dim.y / block_dim.y, texture_dim.z / block_dim.z);
 
-	//Bind voxel array to a writable CUDA surface
+	// Bind voxel array to a writable CUDA surface
 	cudaBindSurfaceToArray(surfaceWrite, cuda_image_array);
 
 	// Create the cuda resource description
 	struct cudaResourceDesc resoureDescription;
 	memset(&resoureDescription, 0, sizeof(resoureDescription));
-	resoureDescription.resType = cudaResourceTypeArray;			// be sure to set the resource type to cudaResourceTypeArray
-	resoureDescription.res.array.array = cuda_image_array;		// this is the important bit
+	resoureDescription.resType = cudaResourceTypeArray;				// be sure to set the resource type to cudaResourceTypeArray
+	resoureDescription.res.array.array = cuda_image_array;			// this is the important bit
 
 	// Create the surface object
 	cudaSurfaceObject_t writableSurfaceObject = 0;
 	cudaCreateSurfaceObject(&writableSurfaceObject, &resoureDescription);
 
+	// Launch kernal operations
 	kernel<<<grid_dim, block_dim>>>(texture_dim);
 		
 	//cutilCheckMsg("kernel failed");
