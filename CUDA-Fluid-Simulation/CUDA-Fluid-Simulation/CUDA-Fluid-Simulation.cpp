@@ -57,9 +57,19 @@ int fpsLimit = 1;
 
 GLuint shaderProgram = NULL;
 
-// OpenGL simulation data textures
+// Simulation data textures
 GLuint glTex_velocity;
 GLuint glTex_velocityTest;
+
+// GL transformation matrices
+glm::mat4 ProjectionMatrix;
+glm::mat4 ModelviewMatrix;
+glm::mat4 ViewMatrix;
+glm::mat4 ModelviewProjection;
+
+// Rendering data
+glm::vec3 EyePosition;
+static float FieldOfView = 0.7f;
 
 cudaGraphicsResource *cuda_image_resource;
 cudaArray            *cuda_image_array;
@@ -100,10 +110,32 @@ void display(void)
 
 	// Use shader
 	glUseProgram(shaderProgram);
+
+	// Bind uniforms
+	
+	//  Quad data
 	glUniform1fv(glGetUniformLocation(shaderProgram, "quadVertices"), 8, quadVertices);
-	glUniform1i(glGetUniformLocation(shaderProgram, "velocityTex"), 0);
+	//  3D simulation data textures
+	glUniform1i(glGetUniformLocation(shaderProgram, "Density"), 0);
+
+	//  Transformation matrices
+	glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ModelviewProjection"), 1, 0, (GLfloat*)&ModelviewProjection);
+	glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "Modelview"), 1, 0, (GLfloat*)&ModelviewMatrix);
+	glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ViewMatrix"), 1, 0, (GLfloat*)&ViewMatrix);
+	glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "ProjectionMatrix"), 1, 0, (GLfloat*)&ProjectionMatrix);
+	//  Rendering data
+	glUniform3f(glGetUniformLocation(shaderProgram, "EyePosition"), EyePosition.x, EyePosition.y, EyePosition.z);
+	glUniform2f(glGetUniformLocation(shaderProgram, "WindowSize"), WINDOW_WIDTH, WINDOW_HEIGHT);
+	float focalLength = 1.0f / std::tan(FieldOfView / 2);
+	glUniform1f(glGetUniformLocation(shaderProgram, "FocalLength"), focalLength);
+	glm::vec4 rayOrigin(transpose(ModelviewMatrix) * glm::vec4(EyePosition, 0.0));
+	glUniform3f(glGetUniformLocation(shaderProgram, "RayOrigin"), rayOrigin.x, rayOrigin.x, rayOrigin.x);
+	
+	// Set active texture
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	
+	// Simple draw call
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glUseProgram(0);
 
@@ -133,14 +165,18 @@ void display(void)
 */
 bool initGL(int *argc, char **argv)
 {
-
-	// Testing, testing
+	// Init transfomation matrices
 	glm::vec3 up(0, 1, 0);
 	glm::vec3 target(0);
-	glm::vec3 eyePosition(0.0, 0.0, 10.0);
-	glm::mat4 viewMatrix = glm::lookAt(eyePosition, target, up);
-	glm::mat4 perspectiveMatrix = glm::perspective(60.0f, (float)WINDOW_WIDTH / WINDOW_HEIGHT, 1.0f, 100.0f);
+	EyePosition = glm::vec3(0.0, 0.0, 10.0);
+	
+	ViewMatrix = glm::lookAt(EyePosition, target, up);
+	ProjectionMatrix = glm::perspective(60.0f, (float)WINDOW_WIDTH / WINDOW_HEIGHT, 1.0f, 100.0f);
+	ModelviewProjection = ProjectionMatrix * ViewMatrix; // TODO: model part?
 
+	glm::mat4 modelMatrix = glm::mat4(); // Temporary modelMatrix. TODO: model part?
+	ModelviewMatrix = ViewMatrix * modelMatrix;
+	
 	glewExperimental = GL_TRUE;
 	if (glewInit() != GLEW_OK){
 		throw std::exception("Failed to initialise GLEW\n");
@@ -288,7 +324,6 @@ int main(int argc, char **argv)
 		printf("Unable to initialize GLEW\n");
 	}
 
-	//fluidVelocityType* fluidVelocityData = (fluidVelocityType*)malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidVelocityType));
 	fluidVelocityType* fluidVelocityData = new fluidVelocityType[NUMBER_OF_GRID_CELLS];
 	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
 
@@ -301,7 +336,6 @@ int main(int argc, char **argv)
 	initCuda();
 
 	//glDeleteTextures(1, &glTex_velocityTest);
-
 	//cutilDeviceReset();
 
 	simulateFluid();
