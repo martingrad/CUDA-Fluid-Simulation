@@ -29,9 +29,6 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
-// CUDA FFT Libraries
-#include <cufft.h>
-
 // CUDA helper functions
 #include <helper_functions.h>
 #include <rendercheck_gl.h>
@@ -48,6 +45,8 @@
 
 #include "CUDA-Fluid-Simulation-kernels.cuh"
 #include "shaders.h"
+#include "glm\glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 cudaExtent volumeSize = make_cudaExtent(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Y);
 const int NUMBER_OF_GRID_CELLS = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z;
@@ -134,6 +133,14 @@ void display(void)
 */
 bool initGL(int *argc, char **argv)
 {
+
+	// Testing, testing
+	glm::vec3 up(0, 1, 0);
+	glm::vec3 target(0);
+	glm::vec3 eyePosition(0.0, 0.0, 10.0);
+	glm::mat4 viewMatrix = glm::lookAt(eyePosition, target, up);
+	glm::mat4 perspectiveMatrix = glm::perspective(60.0f, (float)WINDOW_WIDTH / WINDOW_HEIGHT, 1.0f, 100.0f);
+
 	glewExperimental = GL_TRUE;
 	if (glewInit() != GLEW_OK){
 		throw std::exception("Failed to initialise GLEW\n");
@@ -190,6 +197,8 @@ bool initGL(int *argc, char **argv)
 
 	shaderProgram = program;
 
+	gluPerspective(75, 1, 0, 100);
+
 	return true;
 }
 
@@ -226,7 +235,7 @@ void initCuda()
 {
 	float4* texels;
 	texels = new float4[VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z];
-	//texels = (float4*)malloc(VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * sizeof(float4));
+	
 	for (int i = 0; i < VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z; ++i)
 	{
 		texels[i] = make_float4(1.0, 0.0, 0.0, 1.0);

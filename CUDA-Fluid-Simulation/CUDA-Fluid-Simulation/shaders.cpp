@@ -24,8 +24,18 @@ const char *fragmentShaderContents = STRINGIFY(
 	uniform sampler3D velocityTex; //texture unit 0
 	out vec4 out_Color;
 
+	struct Ray
+	{
+		vec3 startingPosition;
+		vec3 direction;
+		float opacity;
+		float stepSize;
+	} ray;
+
 	void main()
 	{
-		out_Color = texture(velocityTex, vec3(1.0));
+		ray.startingPosition = vec3(gl_FragCoord);
+
+		out_Color = texture(velocityTex, vec3(0.0));
 	}
 );
