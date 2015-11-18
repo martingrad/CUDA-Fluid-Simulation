@@ -95,12 +95,16 @@ void simulateFluid()
 */
 void display(void)
 {
-	EyePosition += glm::vec3(0.1, 0.0, 0.0);
+	// Call update/simulate function...?
 
+	// [TEMP] update eye position
+	/*EyePosition += glm::vec3(1.0, 1.0, 1.0);
+	ViewMatrix = glm::lookAt(EyePosition, glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0));*/
+	
 	sdkStartTimer(&timer);
 
 	// Clear framebuffer and zbuffer
-	glClearColor(0.0, 0.0, 0.5, 1.0);
+	glClearColor(0.5, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	// Create quad that covers screen to render to
@@ -144,7 +148,7 @@ void display(void)
 	sdkStopTimer(&timer);
 	glutSwapBuffers();
 
-	fpsCount++;
+	/*fpsCount++;
 
 	if (fpsCount == fpsLimit)
 	{
@@ -155,7 +159,7 @@ void display(void)
 		fpsCount = 0;
 		fpsLimit = (int)MAX(ifps, 1.f);
 		sdkResetTimer(&timer);
-	}
+	}*/
 
 	// Trigger next frame
 	glutPostRedisplay();
@@ -166,6 +170,10 @@ void display(void)
 */
 bool initGL(int *argc, char **argv)
 {
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	// Init transfomation matrices
 	glm::vec3 up(0, 1, 0);
 	glm::vec3 target(0.0, 0.0, 0.0);
@@ -280,7 +288,7 @@ void initCuda()
 	// Velocity texture initial data
 	for (int i = 0; i < VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z; ++i)
 	{
-		texels[i] = make_float4(0.01, 0.0, 0.0, 1.0);
+		texels[i] = make_float4(1.0 / VOLUME_SIZE_X * ((sin(i * 0.1) + 1.0) / 2.0), 0.0, 0.0, 1.0);
 	}
 
 	glGenTextures(1, &glTex_velocity);
@@ -333,11 +341,11 @@ int main(int argc, char **argv)
 	fluidVelocityType* fluidVelocityData = new fluidVelocityType[NUMBER_OF_GRID_CELLS];
 	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
 
-	// Create velocity data
-	for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
-	{
-		fluidVelocityData[i] = (fluidVelocityType)make_float4(0.01, 1.0, 1.0, 1.0);
-	}
+	//// Create velocity data
+	//for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
+	//{
+	//	fluidVelocityData[i] = (fluidVelocityType)make_float4(0.01, 1.0, 1.0, 1.0);
+	//}
 
 	initCuda();
 

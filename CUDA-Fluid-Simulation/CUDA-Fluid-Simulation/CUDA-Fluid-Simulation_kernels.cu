@@ -66,8 +66,8 @@ void kernel(dim3 texture_dim)
 		return;
 	}
 	
-	float4 element = make_float4(0.5f / VOLUME_SIZE_X, 0.0, 1.0, 0.2f);
-	surf3Dwrite(element, surfaceWrite, x * sizeof(float4), y, z);
+	//float4 element = make_float4(0.5f / VOLUME_SIZE_X, 0.0, 1.0, 0.2f);
+	//surf3Dwrite(element, surfaceWrite, x * sizeof(float4), y, z);
 
 	/*float4 temp;
 	surf3Dread(&temp, surfaceWrite, x * sizeof(float4), y, z);
