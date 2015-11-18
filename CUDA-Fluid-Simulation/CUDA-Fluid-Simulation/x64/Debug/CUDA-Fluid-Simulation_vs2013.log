@@ -1,4 +1,4 @@
-﻿Build started 18/11/2015 18:44:08 PM.
+﻿Build started 18/11/2015 19:09:17 PM.
      1>Project "D:\Dokument\LiTH\TSBK03\CUDA-Fluid-Simulation\CUDA-Fluid-Simulation\CUDA-Fluid-Simulation\CUDA-Fluid-Simulation_vs2013.vcxproj" on node 2 (Build target(s)).
      1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets(381,5): warning MSB8028: The intermediate directory (x64/Debug/) contains files shared from another project (fluidsGL.vcxproj).  This can lead to incorrect clean and rebuild behavior.
      1>ClCompile:
@@ -6,7 +6,7 @@
          CUDA-Fluid-Simulation.cpp
      1>C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xutility(2904): warning C4244: 'initializing' : conversion from '__int64' to 'ptrdiff_t', possible loss of data
      1>C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xutility(2905): warning C4244: 'initializing' : conversion from '__int64' to 'ptrdiff_t', possible loss of data
-     1>CUDA-Fluid-Simulation.cpp(291): warning C4244: 'argument' : conversion from 'double' to 'float', possible loss of data
+     1>CUDA-Fluid-Simulation.cpp(291): warning C4305: 'argument' : truncation from 'double' to 'float'
      1>C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xstring(1297): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
                  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\xstring(1294) : while compiling class template member function 'std::_String_iterator<std::_String_val<std::_Simple_types<char>>> std::basic_string<char,std::char_traits<char>,std::allocator<char>>::insert(std::_String_const_iterator<std::_String_val<std::_Simple_types<char>>>,_Elem)'
                  with
@@ -33,4 +33,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:01.31
+Time Elapsed 00:00:01.30

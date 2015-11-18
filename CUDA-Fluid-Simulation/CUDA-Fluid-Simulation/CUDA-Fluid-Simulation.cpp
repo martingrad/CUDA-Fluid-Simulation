@@ -288,7 +288,7 @@ void initCuda()
 	// Velocity texture initial data
 	for (int i = 0; i < VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z; ++i)
 	{
-		texels[i] = make_float4(1.0 / VOLUME_SIZE_X * ((sin(i * 0.1) + 1.0) / 2.0), 0.0, 0.0, 1.0);
+		texels[i] = make_float4(0.01, 0.0, 0.0, 1.0);
 	}
 
 	glGenTextures(1, &glTex_velocity);
