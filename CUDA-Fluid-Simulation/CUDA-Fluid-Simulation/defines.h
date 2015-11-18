@@ -6,9 +6,9 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define VOLUME_SIZE_X 128
-#define VOLUME_SIZE_Y 128
-#define VOLUME_SIZE_Z 128
+#define VOLUME_SIZE_X 32
+#define VOLUME_SIZE_Y 32
+#define VOLUME_SIZE_Z 32
 
 #define THREADS_PER_BLOCK 512		// 8 * 8 * 8
 #define NUMBER_OF_BLOCKS 512		// 8 * 8 * 8

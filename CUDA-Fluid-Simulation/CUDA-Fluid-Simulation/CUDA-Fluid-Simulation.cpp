@@ -59,7 +59,6 @@ GLuint shaderProgram = NULL;
 
 // Simulation data textures
 GLuint glTex_velocity;
-GLuint glTex_velocityTest;
 
 // GL transformation matrices
 glm::mat4 ProjectionMatrix;
@@ -96,6 +95,8 @@ void simulateFluid()
 */
 void display(void)
 {
+	EyePosition += glm::vec3(0.1, 0.0, 0.0);
+
 	sdkStartTimer(&timer);
 
 	// Clear framebuffer and zbuffer
@@ -133,7 +134,7 @@ void display(void)
 	
 	// Set active texture
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
 	
 	// Simple draw call
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -167,8 +168,8 @@ bool initGL(int *argc, char **argv)
 {
 	// Init transfomation matrices
 	glm::vec3 up(0, 1, 0);
-	glm::vec3 target(0);
-	EyePosition = glm::vec3(0.0, 0.0, 10.0);
+	glm::vec3 target(0.0, 0.0, 0.0);
+	EyePosition = glm::vec3(9.0, 9.0, 9.0);
 	
 	ViewMatrix = glm::lookAt(EyePosition, target, up);
 	ProjectionMatrix = glm::perspective(60.0f, (float)WINDOW_WIDTH / WINDOW_HEIGHT, 1.0f, 100.0f);
@@ -183,7 +184,7 @@ bool initGL(int *argc, char **argv)
 		//printf("FAILED TO initialize GLEW");
 	}
 	else {
-		//printf("SUCCESSEDED IN Initialising GLEW\n");
+		//printf("SUCCEEDED IN initialising GLEW\n");
 	}
 
 	if (!glewIsSupported("GL_ARB_vertex_buffer_object"))
@@ -204,17 +205,21 @@ bool initGL(int *argc, char **argv)
 	// Create shader program
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	GLuint geometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 
 	glShaderSource(vertexShader, 1, &vertexShaderContents, 0);
 	glShaderSource(fragmentShader, 1, &fragmentShaderContents, 0);
+	glShaderSource(geometryShader, 1, &geometryShaderContents, 0);
 
 	glCompileShader(vertexShader);
 	glCompileShader(fragmentShader);
+	glCompileShader(geometryShader);
 
 	GLuint program = glCreateProgram();
 
 	glAttachShader(program, vertexShader);
 	glAttachShader(program, fragmentShader);
+	//glAttachShader(program, geometryShader);
 
 	glLinkProgram(program);
 
@@ -244,7 +249,7 @@ void checkTex()
 	int numElements = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * 4;
 	float *data = new float[numElements];
 
-	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
 	{
 		glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, GL_FLOAT, data);
 	}
@@ -272,13 +277,14 @@ void initCuda()
 	float4* texels;
 	texels = new float4[VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z];
 	
+	// Velocity texture initial data
 	for (int i = 0; i < VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z; ++i)
 	{
-		texels[i] = make_float4(1.0, 0.0, 0.0, 1.0);
+		texels[i] = make_float4(0.01, 0.0, 0.0, 1.0);
 	}
 
-	glGenTextures(1, &glTex_velocityTest);
-	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glGenTextures(1, &glTex_velocity);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocity);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -292,7 +298,7 @@ void initCuda()
 	//CUT_CHECK_ERROR_GL();
 
 	// Register Image (texture) to CUDA Resource
-	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocityTest, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
+	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocity, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
 
 	// Map CUDA resource
 	cudaGraphicsMapResources(1, &cuda_image_resource, 0);
@@ -328,14 +334,14 @@ int main(int argc, char **argv)
 	void* fluidPressureData = malloc(NUMBER_OF_GRID_CELLS * sizeof(fluidPressureType));
 
 	// Create velocity data
-	/*for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
+	for (int i = 0; i < volumeSize.width * volumeSize.width * volumeSize.depth; ++i)
 	{
-		fluidVelocityData[i] = (fluidVelocityType)make_float4(1.0, 1.0, 1.0, 1.0);
-	}*/
+		fluidVelocityData[i] = (fluidVelocityType)make_float4(0.01, 1.0, 1.0, 1.0);
+	}
 
 	initCuda();
 
-	//glDeleteTextures(1, &glTex_velocityTest);
+	//glDeleteTextures(1, &glTex_velocity);
 	//cutilDeviceReset();
 
 	simulateFluid();

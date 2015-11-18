@@ -11,3 +11,4 @@
 
 extern const char *vertexShaderContents;
 extern const char *fragmentShaderContents;
+extern const char *geometryShaderContents;
