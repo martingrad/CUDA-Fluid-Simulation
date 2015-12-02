@@ -1,7 +1,7 @@
 /*
- *
- *
- */
+*
+*
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,19 +65,38 @@ void kernel(dim3 texture_dim)
 	{
 		return;
 	}
+
 	
-	//float4 element = make_float4(0.5f / VOLUME_SIZE_X, 0.0, 1.0, 0.2f);
-	//surf3Dwrite(element, surfaceWrite, x * sizeof(float4), y, z);
 
-	/*float4 temp;
-	surf3Dread(&temp, surfaceWrite, x * sizeof(float4), y, z);
-
-	float4 tempElement = make_float4(element.x + temp.x, element.w + temp.w, element.z + temp.z, element.w + temp.w);
-	surf3Dwrite(temp, surfaceWrite, x * sizeof(float4), y, z);*/
+	float4 element = make_float4(1.0, 1.0, 1.0, 1.0f);
+	surf3Dwrite(element, surfaceWrite, x * sizeof(float4), y, z);
 }
 
+__global__
+void kernel_simulate(dim3 texture_dim)
+{
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+	if (x >= texture_dim.x || y >= texture_dim.y || z >= texture_dim.z)
+	{
+		return;
+	}
+
+	float4 temp;
+	surf3Dread(&temp, surfaceWrite, x * sizeof(float4), y, z);
+	temp.x -= 0.01;
+	temp.y -= 0.01;
+	temp.z -= 0.01;
+
+	//float4 element = make_float4(0.0, 1.0, 0.0, 1.0f);
+	surf3Dwrite(temp, surfaceWrite, x * sizeof(float4), y, z);
+}
+
+
 /* = External cpp function implementations =
- * =========================================
+* =========================================
 */
 
 extern "C"
@@ -85,6 +104,16 @@ void advectVelocity()
 {
 	dim3 threadsPerBlock(pow(THREADS_PER_BLOCK, 1 / 3), pow(THREADS_PER_BLOCK, 1 / 3), pow(THREADS_PER_BLOCK, 1 / 3));
 	dim3 numBlocks(VOLUME_SIZE_X / threadsPerBlock.x, VOLUME_SIZE_Y / threadsPerBlock.y, VOLUME_SIZE_Z / threadsPerBlock.z);
+}
+
+extern "C"
+void launch_kernel_simulate(cudaArray *cuda_image_array, dim3 texture_dim)
+{
+	dim3 block_dim(8, 8, 8);
+	dim3 grid_dim(texture_dim.x / block_dim.x, texture_dim.y / block_dim.y, texture_dim.z / block_dim.z);
+
+	// Launch kernal operations
+	kernel_simulate<<<grid_dim, block_dim>>>(texture_dim);
 }
 
 extern "C"
@@ -109,6 +138,6 @@ void launch_kernel(cudaArray *cuda_image_array, dim3 texture_dim, float testFloa
 
 	// Launch kernal operations
 	kernel<<<grid_dim, block_dim>>>(texture_dim);
-		
+
 	//cutilCheckMsg("kernel failed");
 }
