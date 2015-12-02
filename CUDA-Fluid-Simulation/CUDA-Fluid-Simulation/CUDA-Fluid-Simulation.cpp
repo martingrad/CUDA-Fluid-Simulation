@@ -55,23 +55,23 @@ dim3 textureDim = dim3(VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z);
 StopWatchInterface *timer = NULL;
 static int fpsCount = 0;
 int fpsLimit = 1;
+bool swapBuffers = false;
 
 GLuint shaderProgram = NULL;
 
 // OpenGL simulation data textures
-GLuint glTex_velocityTest;
+GLuint glTex_velocityTest1;
+GLuint glTex_velocityTest2;
 
-cudaGraphicsResource *cuda_image_resource;
-cudaArray            *cuda_image_array;
+cudaGraphicsResource *cuda_image_resource1;
+cudaGraphicsResource *cuda_image_resource2;
+cudaArray            *cuda_image_array1;
+cudaArray            *cuda_image_array2;
 
 extern "C" void advectVelocity();
 extern "C" void initCuda(void *fluidData_velocity, void* fluidData_pressure, cudaExtent volumeSize);
-extern "C" void launch_kernel(struct cudaArray *cuda_image_array, dim3 texture_dim, float testFloatX, float testFloatY, float testFloatZ);
-extern "C" void launch_kernel_simulate(struct cudaArray *cuda_image_array, dim3 texture_dim);
-
-float testFloatX = 0.0f;
-float testFloatY = 0.0f;
-float testFloatZ = 0.0f;
+extern "C" void launch_kernel(struct cudaArray *cuda_image_array1, struct cudaArray *cuda_image_array2, dim3 texture_dim);
+extern "C" void launch_kernel_simulate(struct cudaArray *cuda_image_array1, struct cudaArray *cuda_image_array2, dim3 texture_dim);
 
 /*
 * simulateFluid
@@ -87,8 +87,19 @@ void simulateFluid()
 */
 void display(void)
 {
+	/*
+	// kanske så här?
+	// Map CUDA resource
+	cudaGraphicsMapResources(1, &cuda_image_resource1, 0);
+	cudaGraphicsMapResources(1, &cuda_image_resource2, 0);
+
+	// Get mapped array
+	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array1, cuda_image_resource1, 0, 0);
+	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array2, cuda_image_resource2, 0, 0);
+	*/
+
 	// Simulate stuff
-	launch_kernel_simulate(cuda_image_array, textureDim);
+	launch_kernel_simulate(cuda_image_array1, cuda_image_array1, textureDim);
 
 	sdkStartTimer(&timer);
 
@@ -107,7 +118,7 @@ void display(void)
 	glUniform1fv(glGetUniformLocation(shaderProgram, "quadVertices"), 8, quadVertices);
 	glUniform1i(glGetUniformLocation(shaderProgram, "velocityTex"), 0);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest1);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glUseProgram(0);
 
@@ -130,6 +141,8 @@ void display(void)
 
 	// Trigger next frame
 	glutPostRedisplay();
+
+	swapBuffers = !swapBuffers;
 }
 
 /*
@@ -212,7 +225,7 @@ void checkTex()
 	int numElements = VOLUME_SIZE_X * VOLUME_SIZE_Y * VOLUME_SIZE_Z * 4;
 	float *data = new float[numElements];
 
-	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest1);
 	glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, GL_FLOAT, data);
 	glBindTexture(GL_TEXTURE_3D, 0);
 
@@ -243,8 +256,20 @@ void initCuda()
 		texels[i] = make_float4(1.0, 0.0, 0.0, 1.0);
 	}
 
-	glGenTextures(1, &glTex_velocityTest);
-	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest);
+	glGenTextures(1, &glTex_velocityTest1);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest1);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, VOLUME_SIZE_X, VOLUME_SIZE_Y, VOLUME_SIZE_Z, 0, GL_RGBA, GL_FLOAT, texels);
+
+	// Unbind texture
+	glBindTexture(GL_TEXTURE_3D, 0);
+
+	glGenTextures(1, &glTex_velocityTest2);
+	glBindTexture(GL_TEXTURE_3D, glTex_velocityTest2);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -258,20 +283,26 @@ void initCuda()
 	//CUT_CHECK_ERROR_GL();
 
 	// Register Image (texture) to CUDA Resource
-	cudaGraphicsGLRegisterImage(&cuda_image_resource, glTex_velocityTest, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
+	cudaGraphicsGLRegisterImage(&cuda_image_resource1, glTex_velocityTest1, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
+	cudaGraphicsGLRegisterImage(&cuda_image_resource2, glTex_velocityTest2, GL_TEXTURE_3D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
 
 	// Map CUDA resource
-	cudaGraphicsMapResources(1, &cuda_image_resource, 0);
+	cudaGraphicsMapResources(1, &cuda_image_resource1, 0);
+	cudaGraphicsMapResources(1, &cuda_image_resource2, 0);
 
 	// Get mapped array
-	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array, cuda_image_resource, 0, 0);
-	launch_kernel(cuda_image_array, textureDim, testFloatX, testFloatY, testFloatZ);
+	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array1, cuda_image_resource1, 0, 0);
+	cudaGraphicsSubResourceGetMappedArray(&cuda_image_array2, cuda_image_resource2, 0, 0);
+	
+	launch_kernel(cuda_image_array1, cuda_image_array2, textureDim);
 
 	//checkTex();
 
 	// Commenting either one or both of these makes it work... :S
-	cudaGraphicsUnmapResources(1, &cuda_image_resource, 0);
-	//cudaGraphicsUnregisterResource(cuda_image_resource);
+	cudaGraphicsUnmapResources(1, &cuda_image_resource1, 0);
+	//cudaGraphicsUnregisterResource(cuda_image_resource1);
+	cudaGraphicsUnmapResources(1, &cuda_image_resource2, 0);
+	//cudaGraphicsUnregisterResource(cuda_image_resource2);
 
 	delete texels;
 }

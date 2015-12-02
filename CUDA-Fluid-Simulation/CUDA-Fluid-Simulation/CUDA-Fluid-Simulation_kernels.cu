@@ -29,6 +29,8 @@ cudaArray *fluidData_pressure_GPU = 0;
 
 // Global scope surface to bind to
 surface<void, cudaSurfaceType3D> surfaceWrite;
+surface<void, cudaSurfaceType3D> surfaceRead;
+
 
 /*
 * Forward Euler
@@ -66,8 +68,6 @@ void kernel(dim3 texture_dim)
 		return;
 	}
 
-	
-
 	float4 element = make_float4(1.0, 1.0, 1.0, 1.0f);
 	surf3Dwrite(element, surfaceWrite, x * sizeof(float4), y, z);
 }
@@ -85,11 +85,14 @@ void kernel_simulate(dim3 texture_dim)
 	}
 
 	float4 temp;
-	surf3Dread(&temp, surfaceWrite, x * sizeof(float4), y, z);
+	surf3Dread(&temp, surfaceRead, x * sizeof(float4), y, z);
+	
+	/*
 	temp.x -= 0.01;
 	temp.y -= 0.01;
 	temp.z -= 0.01;
-
+	*/
+	
 	//float4 element = make_float4(0.0, 1.0, 0.0, 1.0f);
 	surf3Dwrite(temp, surfaceWrite, x * sizeof(float4), y, z);
 }
@@ -107,7 +110,7 @@ void advectVelocity()
 }
 
 extern "C"
-void launch_kernel_simulate(cudaArray *cuda_image_array, dim3 texture_dim)
+void launch_kernel_simulate(cudaArray *cuda_image_array1, cudaArray *cuda_image_array2, dim3 texture_dim)
 {
 	dim3 block_dim(8, 8, 8);
 	dim3 grid_dim(texture_dim.x / block_dim.x, texture_dim.y / block_dim.y, texture_dim.z / block_dim.z);
@@ -117,24 +120,34 @@ void launch_kernel_simulate(cudaArray *cuda_image_array, dim3 texture_dim)
 }
 
 extern "C"
-void launch_kernel(cudaArray *cuda_image_array, dim3 texture_dim, float testFloatX, float testFloatY, float testFloatZ)
+void launch_kernel(cudaArray *cuda_image_array1, cudaArray *cuda_image_array2, dim3 texture_dim)
 {
-
 	dim3 block_dim(8, 8, 8);
 	dim3 grid_dim(texture_dim.x / block_dim.x, texture_dim.y / block_dim.y, texture_dim.z / block_dim.z);
 
 	// Bind voxel array to a writable CUDA surface
-	cudaBindSurfaceToArray(surfaceWrite, cuda_image_array);
+	cudaBindSurfaceToArray(surfaceWrite, cuda_image_array1);
+	cudaBindSurfaceToArray(surfaceRead, cuda_image_array2);
 
-	// Create the cuda resource description
-	struct cudaResourceDesc resoureDescription;
-	memset(&resoureDescription, 0, sizeof(resoureDescription));
-	resoureDescription.resType = cudaResourceTypeArray;				// be sure to set the resource type to cudaResourceTypeArray
-	resoureDescription.res.array.array = cuda_image_array;			// this is the important bit
+	// Create the first cuda resource description
+	struct cudaResourceDesc resoureDescription1;
+	memset(&resoureDescription1, 0, sizeof(resoureDescription1));
+	resoureDescription1.resType = cudaResourceTypeArray;				// be sure to set the resource type to cudaResourceTypeArray
+	resoureDescription1.res.array.array = cuda_image_array1;			// this is the important bit
 
-	// Create the surface object
-	cudaSurfaceObject_t writableSurfaceObject = 0;
-	cudaCreateSurfaceObject(&writableSurfaceObject, &resoureDescription);
+	// Create the surface write object
+	cudaSurfaceObject_t writableSurfaceObject1 = 0;
+	cudaCreateSurfaceObject(&writableSurfaceObject1, &resoureDescription1);
+
+	// Create the second cuda resource description
+	struct cudaResourceDesc resoureDescription2;
+	memset(&resoureDescription2, 0, sizeof(resoureDescription2));
+	resoureDescription2.resType = cudaResourceTypeArray;				// be sure to set the resource type to cudaResourceTypeArray
+	resoureDescription2.res.array.array = cuda_image_array2;			// this is the important bit
+
+	// Create the surface write object
+	cudaSurfaceObject_t writableSurfaceObject2 = 0;
+	cudaCreateSurfaceObject(&writableSurfaceObject2, &resoureDescription2);
 
 	// Launch kernal operations
 	kernel<<<grid_dim, block_dim>>>(texture_dim);
